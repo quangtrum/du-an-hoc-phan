@@ -1,13 +1,13 @@
 import { SYSTEM_PROMPT } from "@/lib/system-prompt";
- 
+
 export const runtime = "nodejs";
 export const maxDuration = 60;
- 
+
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 // Model chính (đổi bằng biến GROQ_MODEL) và model dự phòng khi bị quá tải
 const MODELS = [process.env.GROQ_MODEL || "openai/gpt-oss-120b", "openai/gpt-oss-20b"];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
- 
+
 async function openStream(apiKey: string, messages: any[]): Promise<{ res: Response } | { status: number; text: string }> {
   let last = { status: 500, text: "" };
   for (const model of MODELS) {
@@ -33,25 +33,25 @@ async function openStream(apiKey: string, messages: any[]): Promise<{ res: Respo
   }
   return last;
 }
- 
+
 export async function POST(req: Request) {
   const apiKey = process.env.GROQ_API_KEY?.trim().replace(/^["']|["']$/g, "");
   if (!apiKey) return new Response("Chưa cấu hình GROQ_API_KEY", { status: 500 });
- 
+
   const { messages } = await req.json().catch(() => ({ messages: null }));
   if (!Array.isArray(messages) || messages.length === 0) return new Response("Dữ liệu không hợp lệ", { status: 400 });
- 
+
   const history = messages
     .slice(-20)
     .filter((m: any) => m?.content)
     .map((m: any) => ({ role: m.role === "user" ? "user" : "assistant", content: String(m.content).slice(0, 8000) }));
- 
+
   const out = await openStream(apiKey, [{ role: "system", content: SYSTEM_PROMPT }, ...history]);
   if (!("res" in out)) {
     const busy = [429, 503].includes(out.status);
     return new Response(busy ? "Groq đang quá tải hoặc hết lượt miễn phí, bạn thử lại sau ít giây nhé." : `Groq lỗi (${out.status}): ${out.text.slice(0, 200)}`, { status: 502 });
   }
- 
+
   const reader = out.res.body!.getReader();
   const dec = new TextDecoder();
   const enc = new TextEncoder();
@@ -84,6 +84,4 @@ export async function POST(req: Request) {
     }),
     { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } }
   );
-}
- 
 }
