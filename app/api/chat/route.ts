@@ -4,7 +4,7 @@ import { SYSTEM_PROMPT } from "@/lib/system-prompt";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, "");
   if (!apiKey) return new Response("Chưa cấu hình GEMINI_API_KEY", { status: 500 });
 
   const { messages } = await req.json().catch(() => ({ messages: null }));
